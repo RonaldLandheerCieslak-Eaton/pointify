@@ -9,7 +9,16 @@ async function getAzure(env) {
 }
 
 async function getTasksClosedAsOf(env, api, asof, state) {
-    const query = `SELECT [System.Id] From WorkItems Where [System.TeamProject] = "${env.teamProject}" AND [System.WorkItemType] = 'Task' ` + ((state) ? `AND [State] = '${state}' ` : `AND [State] <> 'Removed' `) + ((asof) ? `AND [Microsoft.VSTS.Common.ClosedDate] >= "${asof.getUTCFullYear()}-${asof.getUTCMonth() + 1}-${asof.getUTCDate()}"` : '') + ` order by [System.CreatedDate] desc`;
+    let teamProjectQuerySnippet = '';
+    let first = true;
+    env.teamProjects.forEach((teamProject) => {
+        if (!first) {
+            teamProjectQuerySnippet += ' OR '
+        }
+        teamProjectQuerySnippet += `[System.TeamProject] = "${teamProject}"`
+        first = false;
+    });
+    const query = `SELECT [System.Id] From WorkItems Where (${teamProjectQuerySnippet}) AND [System.WorkItemType] = 'Task' ` + ((state) ? `AND [State] = '${state}' ` : `AND [State] <> 'Removed' `) + ((asof) ? `AND [Microsoft.VSTS.Common.ClosedDate] >= "${asof.getUTCFullYear()}-${asof.getUTCMonth() + 1}-${asof.getUTCDate()}"` : '') + ` order by [System.CreatedDate] desc`;
     return api.queryByWiql({query})
     .then((workItems) => {
         const idsToFetch = [];

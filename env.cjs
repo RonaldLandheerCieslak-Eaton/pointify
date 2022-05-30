@@ -18,7 +18,7 @@ function requireFromEnv(key) {
 module.exports = {
     appName: packageJson.name,
     instanceUri: requireFromEnv('INSTANCE_URI'),
-    teamProject: requireFromEnv('TEAM_PROJECT'),
+    teamProjects: JSON.parse(requireFromEnv('TEAM_PROJECTS')),
     accessToken: requireFromEnv('TEAM_ACCESS_TOKEN'),
     defaultPointsByDiscipline: JSON.parse(requireFromEnv('DEFAULT_POINTS_BY_TYPE')),
     defaultPointsByRelativeSize: JSON.parse(requireFromEnv('DEFAULT_POINTS_BY_RELATIVE_SIZE'))
