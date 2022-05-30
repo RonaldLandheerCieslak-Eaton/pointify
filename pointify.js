@@ -8,18 +8,28 @@ async function getAzure(env) {
     return await connection.getWorkItemTrackingApi();
 }
 
-async function getTasksClosedAsOf(env, api, asof, state) {
+async function getWorkItems(env, api, query) {
     let teamProjectQuerySnippet = '';
     let first = true;
-    env.teamProjects.forEach((teamProject) => {
+    query.teamProjects.forEach((teamProject) => {
         if (!first) {
             teamProjectQuerySnippet += ' OR '
         }
         teamProjectQuerySnippet += `[System.TeamProject] = "${teamProject}"`
         first = false;
     });
-    const query = `SELECT [System.Id] From WorkItems Where (${teamProjectQuerySnippet}) AND [System.WorkItemType] = 'Task' ` + ((state) ? `AND [State] = '${state}' ` : `AND [State] <> 'Removed' `) + ((asof) ? `AND [Microsoft.VSTS.Common.ClosedDate] >= "${asof.getUTCFullYear()}-${asof.getUTCMonth() + 1}-${asof.getUTCDate()}"` : '') + ` order by [System.CreatedDate] desc`;
-    return api.queryByWiql({query})
+
+    let workItemTypeSnippet = '';
+    first = true;
+    query.workItemTypes.forEach((workItemType) => {
+        if (!first) {
+            workItemTypeSnippet += ' OR '
+        }
+        workItemTypeSnippet += `[System.WorkItemType] = '${workItemType}'`
+        first = false;
+    });
+    const wiql = `SELECT [System.Id] From WorkItems Where (${teamProjectQuerySnippet}) AND (${workItemTypeSnippet}) ` + ((query.state) ? `AND [State] = '${query.state}' ` : `AND [State] <> 'Removed' `) + ((query.asof) ? `AND [Microsoft.VSTS.Common.ClosedDate] >= "${query.asof.getUTCFullYear()}-${query.asof.getUTCMonth() + 1}-${query.asof.getUTCDate()}"` : '') + ` order by [System.CreatedDate] desc`;
+    return api.queryByWiql({query: wiql})
     .then((workItems) => {
         const idsToFetch = [];
         workItems.workItems.forEach((workItem) => {
@@ -47,6 +57,10 @@ async function getTasksClosedAsOf(env, api, asof, state) {
             })
         }
     })
+}
+
+async function getTasksClosedAsOf(env, api, asof, state) {
+    return getWorkItems(env, api, { teamProjects: env.teamProjects, workItemTypes: ['Task'], state, asof })
 }
 
 function getWorkItemIdFromUrl(url) {
