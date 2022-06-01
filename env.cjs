@@ -21,5 +21,7 @@ module.exports = {
     teamProjects: JSON.parse(requireFromEnv('TEAM_PROJECTS')),
     accessToken: requireFromEnv('TEAM_ACCESS_TOKEN'),
     defaultPointsByDiscipline: JSON.parse(requireFromEnv('DEFAULT_POINTS_BY_TYPE')),
-    defaultPointsByRelativeSize: JSON.parse(requireFromEnv('DEFAULT_POINTS_BY_RELATIVE_SIZE'))
+    defaultPointsByRelativeSize: JSON.parse(requireFromEnv('DEFAULT_POINTS_BY_RELATIVE_SIZE')),
+    coreTeam: JSON.parse(requireFromEnv('CORE_TEAM')), // count toward team average
+    teamMembers: JSON.parse(requireFromEnv('TEAM_MEMBERS')),
 }

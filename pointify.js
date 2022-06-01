@@ -95,8 +95,12 @@ function filterOutByReason(tasks, reasons) {
 }
 
 function getWorkItemPoints(api, workItem) {
-    if (Object.keys(workItem.fields).includes('Microsoft.VSTS.Scheduling.OriginalEstimate') && workItem.fields['Microsoft.VSTS.Scheduling.OriginalEstimate'] != 0) return workItem.fields['Microsoft.VSTS.Scheduling.OriginalEstimate'];
-    if (env.defaultPointsByDiscipline[workItem.fields['Microsoft.VSTS.Common.Discipline']]) return env.defaultPointsByDiscipline[workItem.fields['Microsoft.VSTS.Common.Discipline']];
+    if (Object.keys(workItem.fields).includes('Microsoft.VSTS.Scheduling.OriginalEstimate') && workItem.fields['Microsoft.VSTS.Scheduling.OriginalEstimate'] != 0) {
+        return new Promise((resolve) => {resolve(workItem.fields['Microsoft.VSTS.Scheduling.OriginalEstimate']);});
+    }
+    if (env.defaultPointsByDiscipline[workItem.fields['Microsoft.VSTS.Common.Discipline']]) {
+        return new Promise((resolve) => {resolve(env.defaultPointsByDiscipline[workItem.fields['Microsoft.VSTS.Common.Discipline']]);});
+    }
 
     return getParentWorkItem(api, workItem)
     .then((parentWorkItem) => {
@@ -105,32 +109,58 @@ function getWorkItemPoints(api, workItem) {
         return retval;
     })
     .catch(() => {
-        return env.defaultPointsByRelativeSize['0- Unknown'];
+        return new Promise((resolve) => {resolve(env.defaultPointsByRelativeSize['0- Unknown']);});
     });
+}
+
+function getWorkItemOwner(api, workItem) {
+    return workItem.fields['System.AssignedTo'];
 }
 
 async function main(env) {
     const api = await getAzure(env);
     const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 3);
     let tasks = await getTasksClosedAsOf(env, api, oneMonthAgo, 'Closed');
     tasks = filterOutByReason(tasks, ['Duplicate', 'Rejected']);
     const points = [];
     tasks.forEach((workItem) => {
-        points.push(getWorkItemPoints(api, workItem));
+        const score = getWorkItemPoints(api, workItem);
+        const owner = getWorkItemOwner(api, workItem);
+        points.push(score.then((score) => { return { owner, score }; }));
     });
     let totalPoints = 0;
     Bluebird.all(points)
     .then((points) => {
+        const pointsPerUser = {};
+        const users = {};
         totalPoints = points.reduce((prev, curr) => {
             if (curr) {
-                return prev + curr;
+                if (Object.keys(pointsPerUser).includes(curr.owner.url)) {
+                    pointsPerUser[curr.owner.url] += curr.score;
+                }
+                else {
+                    pointsPerUser[curr.owner.url] = curr.score;
+                }
+                users[curr.owner.url] = curr.owner;
+                return prev + curr.score;
             }
             else {
                 return prev;
             }
         }, 0);
-        console.log(totalPoints);
+        const prettyPointsPerUser = {};
+        let coreTeamTotalPoints = 0;
+        Object.keys(pointsPerUser).forEach((userUrl) => {
+            const eNumber = users[userUrl].uniqueName.match(/[^\\]+$/)[0];
+            if (env.teamMembers.includes(eNumber)) {
+                prettyPointsPerUser[`${users[userUrl].displayName} (${eNumber})`] = pointsPerUser[userUrl];
+            }
+            if (env.coreTeam.includes(eNumber)) {
+                coreTeamTotalPoints += pointsPerUser[userUrl];
+            }
+        })
+        console.log(JSON.stringify({totalPoints,pointsPerUser: prettyPointsPerUser, teamAverage: coreTeamTotalPoints / env.coreTeam.length}, null, 4));
     });
 }
 
