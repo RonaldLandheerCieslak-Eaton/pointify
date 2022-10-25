@@ -79,7 +79,7 @@ async function getParentWorkItem(api, workItem) {
         })
     }
     return retval ? retval : new Promise((resolve, reject) => {
-        console.log(`Parent not found!`);
+        console.log(`Parent not found for ${workItem.id}!`);
         resolve();
     });
 }
@@ -165,7 +165,7 @@ export async function pointify(env) {
 }
 
 async function main(env) {
-    console.log(JSON.stringify(pointify(env), null, 4));
+    console.log(JSON.stringify(await pointify(env), null, 4));
 }
 
 main(env)
