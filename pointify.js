@@ -117,7 +117,7 @@ function getWorkItemOwner(api, workItem) {
     return workItem.fields['System.AssignedTo'];
 }
 
-async function main(env) {
+export async function pointify(env) {
     const api = await getAzure(env);
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 3);
@@ -130,7 +130,7 @@ async function main(env) {
         points.push(score.then((score) => { return { owner, score }; }));
     });
     let totalPoints = 0;
-    Bluebird.all(points)
+    return Bluebird.all(points)
     .then((points) => {
         const pointsPerUser = {};
         const users = {};
@@ -160,8 +160,12 @@ async function main(env) {
                 coreTeamTotalPoints += pointsPerUser[userUrl];
             }
         })
-        console.log(JSON.stringify({totalPoints,pointsPerUser: prettyPointsPerUser, teamAverage: coreTeamTotalPoints / env.coreTeam.length}, null, 4));
+        return {totalPoints,pointsPerUser: prettyPointsPerUser, teamAverage: coreTeamTotalPoints / env.coreTeam.length}
     });
+}
+
+async function main(env) {
+    console.log(JSON.stringify(pointify(env), null, 4));
 }
 
 main(env)
